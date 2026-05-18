@@ -1,17 +1,17 @@
-# syntax = docker/dockerfile-upstream:1.23.0-labs
+# syntax = docker/dockerfile-upstream:1.24.0-labs
 
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2026-04-14T10:33:48Z by kres b6d29bf.
+# Generated on 2026-05-18T14:41:28Z by kres ec45272.
 
 ARG TOOLCHAIN=scratch
 
-FROM ghcr.io/siderolabs/ca-certificates:v1.12.0 AS image-ca-certificates
+FROM ghcr.io/siderolabs/ca-certificates:v1.13.0 AS image-ca-certificates
 
-FROM ghcr.io/siderolabs/fhs:v1.12.0 AS image-fhs
+FROM ghcr.io/siderolabs/fhs:v1.13.0 AS image-fhs
 
 # runs markdownlint
-FROM docker.io/oven/bun:1.3.11-alpine AS lint-markdown
+FROM docker.io/oven/bun:1.3.14-alpine AS lint-markdown
 WORKDIR /src
 RUN bun i markdownlint-cli@0.48.0 sentences-per-line@0.5.2
 COPY .markdownlint.json .

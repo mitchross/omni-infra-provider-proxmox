@@ -13,6 +13,13 @@ import (
 )
 
 func TestPickNode(t *testing.T) {
+	const (
+		nodeA = "NodeA"
+		nodeB = "NodeB"
+		nodeC = "NodeC"
+		nodeD = "NodeD"
+	)
+
 	tests := []struct {
 		name     string
 		expected string
@@ -28,38 +35,38 @@ func TestPickNode(t *testing.T) {
 		{
 			name: "Primary criteria: Pick node with fewer same-set VMs",
 			input: []provider.NodeStatus{
-				{Name: "NodeA", MemoryFree: 1.0, SameMachineRequestSetVMs: 10},
+				{Name: nodeA, MemoryFree: 1.0, SameMachineRequestSetVMs: 10},
 				// Node B has less memory, but is free (0 VMs) -> Should win
-				{Name: "NodeB", MemoryFree: 0.5, SameMachineRequestSetVMs: 0},
+				{Name: nodeB, MemoryFree: 0.5, SameMachineRequestSetVMs: 0},
 			},
-			expected: "NodeB",
+			expected: nodeB,
 		},
 		{
 			name: "Secondary criteria: If VMs equal, pick node with MOST free memory",
 			input: []provider.NodeStatus{
-				{Name: "NodeA", MemoryFree: 0.5, SameMachineRequestSetVMs: 5},
-				{Name: "NodeB", MemoryFree: 1.0, SameMachineRequestSetVMs: 5}, // More memory
-				{Name: "NodeC", MemoryFree: 0.1, SameMachineRequestSetVMs: 5},
+				{Name: nodeA, MemoryFree: 0.5, SameMachineRequestSetVMs: 5},
+				{Name: nodeB, MemoryFree: 1.0, SameMachineRequestSetVMs: 5}, // More memory
+				{Name: nodeC, MemoryFree: 0.1, SameMachineRequestSetVMs: 5},
 			},
-			expected: "NodeB",
+			expected: nodeB,
 		},
 		{
 			name: "Complex scenario",
 			input: []provider.NodeStatus{
-				{Name: "NodeA", MemoryFree: 0.1, SameMachineRequestSetVMs: 2},
-				{Name: "NodeB", MemoryFree: 0.05, SameMachineRequestSetVMs: 1}, // Best VM count
-				{Name: "NodeC", MemoryFree: 0.04, SameMachineRequestSetVMs: 1}, // Same VM count, less memory than B
-				{Name: "NodeD", MemoryFree: 1, SameMachineRequestSetVMs: 5},
+				{Name: nodeA, MemoryFree: 0.1, SameMachineRequestSetVMs: 2},
+				{Name: nodeB, MemoryFree: 0.05, SameMachineRequestSetVMs: 1}, // Best VM count
+				{Name: nodeC, MemoryFree: 0.04, SameMachineRequestSetVMs: 1}, // Same VM count, less memory than B
+				{Name: nodeD, MemoryFree: 1, SameMachineRequestSetVMs: 5},
 			},
-			expected: "NodeB",
+			expected: nodeB,
 		},
 		{
 			name: "No free memory",
 			input: []provider.NodeStatus{
-				{Name: "NodeA", MemoryFree: 0, SameMachineRequestSetVMs: 0},
-				{Name: "NodeB", MemoryFree: 1, SameMachineRequestSetVMs: 0},
+				{Name: nodeA, MemoryFree: 0, SameMachineRequestSetVMs: 0},
+				{Name: nodeB, MemoryFree: 1, SameMachineRequestSetVMs: 0},
 			},
-			expected: "NodeB",
+			expected: nodeB,
 		},
 	}
 

@@ -138,3 +138,26 @@ Run the executable:
 ```bash
 _out/omni-infra-provider-linux-amd64 --config config.yaml --omni-api-endpoint https://<account-name>.omni.siderolabs.io/ --omni-service-account-key <service-account-key>
 ```
+
+## Running Integration Tests
+
+End-to-end tests spin up two Proxmox VE nodes in privileged Docker containers
+(via [containerized-proxmox](https://github.com/LongQT-sea/containerized-proxmox)),
+form a `pvecm` cluster between them, launch Omni and the provider, then drive the
+`omni-integration-test` suite against the provider.
+
+Requirements on the host running the tests:
+
+- Linux kernel 6.8+ with `/dev/kvm` (Intel VT-x or AMD-V enabled)
+- Docker 26+ with privileged containers permitted
+- `sops` installed and a decryptable `.secrets.yaml` providing `AUTH0_TEST_USERNAME`, `AUTH0_CLIENT_ID`, `AUTH0_DOMAIN`
+
+Run it via:
+
+```bash
+sudo -E make run-integration-test
+```
+
+The Proxmox containers, Vault, and Omni are torn down on exit (in CI they are
+left in place so the artifact upload steps can collect logs from
+`/tmp/proxmox-e2e/`).

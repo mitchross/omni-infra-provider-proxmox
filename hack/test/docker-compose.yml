@@ -1,0 +1,56 @@
+x-pve-service: &pve-systemd
+  image: ghcr.io/longqt-sea/proxmox-ve
+  restart: unless-stopped
+  stdin_open: true
+  tty: true
+  cgroup: private
+  device_cgroup_rules:
+    - "a *:* rwm"
+  cap_add:
+    - ALL
+  security_opt:
+    - seccomp=unconfined
+    - apparmor=unconfined
+    - systempaths=unconfined
+  volumes:
+    - /usr/lib/modules:/usr/lib/modules:ro
+    - /sys/kernel/security:/sys/kernel/security
+    - /dev/vfio:/dev/vfio
+  environment:
+    PASSWORD: testonly
+
+services:
+  pve-1:
+    <<: *pve-systemd
+    container_name: pve-1
+    hostname: pve-1
+    networks:
+      proxmox-test:
+        ipv4_address: 10.0.99.1
+    ports:
+      - "3128:3128"
+      - "8006:8006"
+
+  pve-2:
+    <<: *pve-systemd
+    container_name: pve-2
+    hostname: pve-2
+    networks:
+      proxmox-test:
+        ipv4_address: 10.0.99.2
+    ports:
+      - "3129:3128"
+      - "8007:8006"
+
+networks:
+  proxmox-test:
+    name: proxmox-test
+    # Match the CI runner's eth0 MTU (1450) so packets from nested VMs egress the host without
+    # being dropped at the runner's outbound interface. Talos's WireGuard sets DF, so a 1500-byte
+    # WG packet would silently die against a 1450 link.
+    driver_opts:
+      com.docker.network.driver.mtu: "1450"
+    ipam:
+      config:
+        - subnet: 10.0.99.0/24
+          gateway: 10.0.99.99

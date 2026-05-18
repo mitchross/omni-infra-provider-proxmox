@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2026-04-14T10:33:48Z by kres b6d29bf.
+# Generated on 2026-05-18T14:41:28Z by kres ec45272.
 
 version: "2"
 
@@ -33,6 +33,7 @@ linters:
     - gochecknoinits
     - godox
     - gomoddirectives
+    - gomodguard
     - gosec
     - inamedparam
     - ireturn
@@ -80,7 +81,7 @@ linters:
       min-complexity: 20
     godot:
       scope: declarations
-    gomodguard: { }
+    gomodguard_v2: { }
     govet:
       enable-all: true
     lll:

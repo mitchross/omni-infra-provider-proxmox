@@ -33,8 +33,6 @@ func (m *MachineSpec) CloneVT() *MachineSpec {
 	r.VolumeUploadTask = m.VolumeUploadTask
 	r.VmCreateTask = m.VmCreateTask
 	r.VmStartTask = m.VmStartTask
-	r.VmStopTask = m.VmStopTask
-	r.VmDeleteTask = m.VmDeleteTask
 	r.Vmid = m.Vmid
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
@@ -75,12 +73,6 @@ func (this *MachineSpec) EqualVT(that *MachineSpec) bool {
 		return false
 	}
 	if this.VmStartTask != that.VmStartTask {
-		return false
-	}
-	if this.VmStopTask != that.VmStopTask {
-		return false
-	}
-	if this.VmDeleteTask != that.VmDeleteTask {
 		return false
 	}
 	if this.Vmid != that.Vmid {
@@ -130,20 +122,6 @@ func (m *MachineSpec) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.Vmid))
 		i--
 		dAtA[i] = 0x58
-	}
-	if len(m.VmDeleteTask) > 0 {
-		i -= len(m.VmDeleteTask)
-		copy(dAtA[i:], m.VmDeleteTask)
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.VmDeleteTask)))
-		i--
-		dAtA[i] = 0x52
-	}
-	if len(m.VmStopTask) > 0 {
-		i -= len(m.VmStopTask)
-		copy(dAtA[i:], m.VmStopTask)
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.VmStopTask)))
-		i--
-		dAtA[i] = 0x4a
 	}
 	if len(m.VmStartTask) > 0 {
 		i -= len(m.VmStartTask)
@@ -239,14 +217,6 @@ func (m *MachineSpec) SizeVT() (n int) {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	l = len(m.VmStartTask)
-	if l > 0 {
-		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
-	}
-	l = len(m.VmStopTask)
-	if l > 0 {
-		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
-	}
-	l = len(m.VmDeleteTask)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
@@ -541,70 +511,6 @@ func (m *MachineSpec) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.VmStartTask = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field VmStopTask", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.VmStopTask = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 10:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field VmDeleteTask", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.VmDeleteTask = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 11:
 			if wireType != 0 {

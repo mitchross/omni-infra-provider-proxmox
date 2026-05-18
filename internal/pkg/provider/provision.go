@@ -122,7 +122,8 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 		}),
 		provision.NewStep("createSchematic", func(ctx context.Context, logger *zap.Logger, pctx provision.Context[*resources.Machine]) error {
 			// generating schematic with join configs as it's going to be used in the ISO image which doesn't support partial configs
-			schematic, err := pctx.GenerateSchematicID(ctx, logger,
+			schematic, err := pctx.GenerateSchematicID(
+				ctx, logger,
 				provision.WithExtraExtensions("siderolabs/qemu-guest-agent"),
 				provision.WithoutConnectionParams(),
 			)
@@ -162,7 +163,8 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				return err
 			}
 
-			url = url.JoinPath("image",
+			url = url.JoinPath(
+				"image",
 				pctx.State.TypedSpec().Value.Schematic,
 				pctx.GetTalosVersion(),
 				"nocloud-amd64.iso",
@@ -355,7 +357,8 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 			}
 
 			if machineRequestSet, ok := pctx.GetMachineRequestSetID(); ok {
-				vmOptions = append(vmOptions,
+				vmOptions = append(
+					vmOptions,
 					proxmox.VirtualMachineOption{
 						Name:  "tags",
 						Value: machineRequestTagPrefix + machineRequestSet,
@@ -514,10 +517,12 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 					return err
 				}
 
-				err = vm.CloudInit(ctx,
+				err = vm.CloudInit(
+					ctx,
 					"ide0",
 					pctx.ConnectionParams.JoinConfig,
-					fmt.Sprintf(`instance-id: %s
+					fmt.Sprintf(
+						`instance-id: %s
 local-hostname: %s
 hostname: %s`,
 						pctx.State.TypedSpec().Value.Uuid,
