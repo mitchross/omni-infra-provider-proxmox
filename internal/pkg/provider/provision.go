@@ -94,6 +94,13 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 			nodeInfoList := make([]nodeStatus, 0, len(nodes))
 
 			for _, node := range nodes {
+				// Skip nodes that are not online to avoid Proxmox API errors
+				if node.Status != "online" {
+					logger.Debug("skipping offline node", zap.String("node", node.Node), zap.String("status", node.Status))
+
+					continue
+				}
+
 				var ns nodeStatus
 
 				ns.Name = node.Node
@@ -118,6 +125,10 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				}
 
 				nodeInfoList = append(nodeInfoList, ns)
+			}
+
+			if len(nodeInfoList) == 0 {
+				return fmt.Errorf("no online nodes available for provisioning")
 			}
 
 			pickedNode := pickNode(nodeInfoList)
