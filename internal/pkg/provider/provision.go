@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/cel-go/cel"
@@ -33,13 +34,16 @@ const machineRequestTagPrefix = "machine-request."
 
 // Provisioner implements Talos emulator infra provider.
 type Provisioner struct {
-	proxmoxClient *proxmox.Client
+	proxmoxClient         *proxmox.Client
+	pendingISODownloads   map[string]string
+	pendingISODownloadsMu sync.Mutex
 }
 
 // NewProvisioner creates a new provisioner.
 func NewProvisioner(proxmoxClient *proxmox.Client) *Provisioner {
 	return &Provisioner{
-		proxmoxClient: proxmoxClient,
+		proxmoxClient:       proxmoxClient,
+		pendingISODownloads: make(map[string]string),
 	}
 }
 
@@ -192,11 +196,26 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				return fmt.Errorf("failed to get storage: %w", err)
 			}
 
+			p.pendingISODownloadsMu.Lock()
+			defer p.pendingISODownloadsMu.Unlock()
+
+			isoUploadID := fmt.Sprintf("%s-%s", node.Name, isoName)
+
 			_, err = storage.ISO(ctx, isoName)
 			// Already downloaded
 			// TODO: figure out a better way to check the errors
 			if err == nil {
+				delete(p.pendingISODownloads, isoUploadID)
+
 				return nil
+			}
+
+			if existing, ok := p.pendingISODownloads[isoUploadID]; ok {
+				logger.Info("ISO image is already being downloaded, reusing the existing task", zap.String("volumeID", isoName), zap.String("task", existing))
+
+				pctx.State.TypedSpec().Value.VolumeUploadTask = existing
+
+				return provision.NewRetryInterval(time.Second)
 			}
 
 			task, err := storage.DownloadURL(ctx, "iso", isoName, url.String())
@@ -207,6 +226,8 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 			logger.Info("uploading new ISO image", zap.String("volumeID", isoName), zap.String("task", string(task.UPID)))
 
 			pctx.State.TypedSpec().Value.VolumeUploadTask = string(task.UPID)
+
+			p.pendingISODownloads[isoUploadID] = string(task.UPID)
 
 			return provision.NewRetryInterval(time.Second)
 		}),
