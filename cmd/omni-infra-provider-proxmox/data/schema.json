@@ -38,6 +38,10 @@
       "minimum": 0,
       "description": "VLAN tag for primary NIC, set to 0 for none"
     },
+    "network_firewall": {
+      "type": "boolean",
+      "description": "Enable per-VM firewall (fwbr) on primary NIC. Defaults to true. Set false when L2-broadcast services need traffic to bypass fwbr."
+    },
     "disk_ssd": {
       "type": "boolean",
       "description": "Enable SSD emulation (ssd=1) for better performance on SSD/NVMe storage"

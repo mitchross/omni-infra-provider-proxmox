@@ -6,7 +6,10 @@ package provider
 
 // Data is the provider custom machine config.
 type Data struct {
-	Balloon         *bool            `yaml:"balloon,omitempty"`
+	Balloon *bool `yaml:"balloon,omitempty"`
+	// NetworkFirewall enables the per-VM firewall (fwbr) on the primary NIC.
+	// Defaults to true. Set false when L2-broadcast services need traffic to bypass fwbr.
+	NetworkFirewall *bool            `yaml:"network_firewall,omitempty"`
 	Node            string           `yaml:"node,omitempty"`
 	StorageSelector string           `yaml:"storage_selector,omitempty"`
 	NetworkBridge   string           `yaml:"network_bridge"`

@@ -297,12 +297,21 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				data.NetworkBridge = "vmbr0"
 			}
 
+			// network_firewall defaults to true for backward-compatibility
+			// with the previous hardcoded behavior. Set false in providerdata
+			// to opt out when L2-broadcast services need traffic to bypass
+			// the per-VM fwbr bridge.
+			primaryFirewall := 1
+			if data.NetworkFirewall != nil && !*data.NetworkFirewall {
+				primaryFirewall = 0
+			}
+
 			// Parse out the network config
 			var networkString string
 			if data.Vlan == 0 {
-				networkString = fmt.Sprintf("virtio,bridge=%s,firewall=1", data.NetworkBridge)
+				networkString = fmt.Sprintf("virtio,bridge=%s,firewall=%d", data.NetworkBridge, primaryFirewall)
 			} else {
-				networkString = fmt.Sprintf("virtio,bridge=%s,firewall=1,tag=%d", data.NetworkBridge, data.Vlan)
+				networkString = fmt.Sprintf("virtio,bridge=%s,firewall=%d,tag=%d", data.NetworkBridge, primaryFirewall, data.Vlan)
 			}
 
 			// Build primary disk options
