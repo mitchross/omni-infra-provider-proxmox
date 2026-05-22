@@ -17,4 +17,5 @@ message MachineSpec {
   string vm_create_task = 7;
   string vm_start_task = 8;
   int32 vmid = 11;
+  string pool = 12;
 }

@@ -9,3 +9,11 @@ type NodeStatus = nodeStatus
 func PickNode(nodes []NodeStatus) NodeStatus {
 	return pickNode(nodes)
 }
+
+func BuildTagsOption(userTags []string, machineRequestSet string) (string, bool) {
+	return buildTagsOption(userTags, machineRequestSet)
+}
+
+func PoolCreateDecision(exists bool, poolID, machineRequestSet string) (bool, error) {
+	return poolCreateDecision(exists, poolID, machineRequestSet)
+}

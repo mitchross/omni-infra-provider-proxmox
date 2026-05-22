@@ -98,6 +98,18 @@
       "type": "boolean",
       "description": "Enable memory ballooning. Set to false for GPU passthrough or hugepages"
     },
+    "pool": {
+      "type": "string",
+      "description": "Proxmox resource pool"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Proxmox VM tags"
+    },
     "additional_nics": {
       "type": "array",
       "description": "Additional network interfaces (e.g., for storage networks)",

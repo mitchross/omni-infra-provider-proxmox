@@ -15,9 +15,11 @@ type Data struct {
 	CPUType         string           `yaml:"cpu_type,omitempty"`
 	DiskAIO         string           `yaml:"disk_aio,omitempty"`
 	DiskCache       string           `yaml:"disk_cache,omitempty"`
+	Pool            string           `yaml:"pool,omitempty"`
 	AdditionalDisks []AdditionalDisk `yaml:"additional_disks,omitempty"`
 	AdditionalNICs  []AdditionalNIC  `yaml:"additional_nics,omitempty"`
 	PCIDevices      []PCIDevice      `yaml:"pci_devices,omitempty"`
+	Tags            []string         `yaml:"tags,omitempty"`
 	Vlan            uint64           `yaml:"vlan"`
 	Memory          uint64           `yaml:"memory"`
 	Sockets         int              `yaml:"sockets"`

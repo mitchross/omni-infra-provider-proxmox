@@ -30,13 +30,17 @@ import (
 	"github.com/siderolabs/omni-infra-provider-proxmox/internal/pkg/provider/resources"
 )
 
-const machineRequestTagPrefix = "machine-request."
+const (
+	machineRequestTagPrefix = "machine-request."
+	poolComment             = "managed by omni-infra-provider-proxmox"
+)
 
 // Provisioner implements Talos emulator infra provider.
 type Provisioner struct {
 	proxmoxClient         *proxmox.Client
 	pendingISODownloads   map[string]string
 	pendingISODownloadsMu sync.Mutex
+	poolMu                sync.Mutex
 }
 
 // NewProvisioner creates a new provisioner.
@@ -377,14 +381,28 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				},
 			}
 
-			if machineRequestSet, ok := pctx.GetMachineRequestSetID(); ok {
-				vmOptions = append(
-					vmOptions,
-					proxmox.VirtualMachineOption{
-						Name:  "tags",
-						Value: machineRequestTagPrefix + machineRequestSet,
-					},
-				)
+			machineRequestSet, _ := pctx.GetMachineRequestSetID()
+			if value, ok := buildTagsOption(data.Tags, machineRequestSet); ok {
+				vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
+					Name:  "tags",
+					Value: value,
+				})
+			}
+
+			if value := cmp.Or(data.Pool, machineRequestSet); value != "" {
+				p.poolMu.Lock()
+				defer p.poolMu.Unlock()
+
+				if err = p.ensurePool(ctx, logger, value, machineRequestSet); err != nil {
+					return err
+				}
+
+				pctx.State.TypedSpec().Value.Pool = value
+
+				vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
+					Name:  "pool",
+					Value: value,
+				})
 			}
 
 			// Primary disk is always scsi0. Additional disks start from scsi1.
@@ -609,7 +627,113 @@ func (p *Provisioner) Deprovision(ctx context.Context, logger *zap.Logger, machi
 		return err
 	}
 
+	if pool := machine.TypedSpec().Value.Pool; pool != "" {
+		p.cleanupPool(ctx, logger, pool)
+	}
+
 	return nil
+}
+
+// User tags come first so the tags string is stable across reconciles.
+func buildTagsOption(userTags []string, machineRequestSet string) (string, bool) {
+	tags := make([]string, 0, len(userTags)+1)
+	tags = append(tags, userTags...)
+
+	if machineRequestSet != "" {
+		tags = append(tags, machineRequestTagPrefix+machineRequestSet)
+	}
+
+	if len(tags) == 0 {
+		return "", false
+	}
+
+	return strings.Join(tags, ";"), true
+}
+
+func poolCreateDecision(exists bool, poolID, machineRequestSet string) (bool, error) {
+	if exists {
+		return false, nil
+	}
+
+	if poolID == machineRequestSet {
+		return true, nil
+	}
+
+	return false, fmt.Errorf("proxmox pool %q does not exist; create it in Proxmox or leave \"pool\" empty to use the machine request set id", poolID)
+}
+
+// List + search instead of Pool(id): go-proxmox flattens missing-pool 404 into a generic 500.
+func (p *Provisioner) findPoolInList(ctx context.Context, poolID string) (comment string, exists bool, err error) {
+	pools, err := p.proxmoxClient.Pools(ctx)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to list proxmox pools: %w", err)
+	}
+
+	for _, pool := range pools {
+		if pool.PoolID == poolID {
+			return pool.Comment, true, nil
+		}
+	}
+
+	return "", false, nil
+}
+
+func (p *Provisioner) ensurePool(ctx context.Context, logger *zap.Logger, poolID, machineRequestSet string) error {
+	_, exists, err := p.findPoolInList(ctx, poolID)
+	if err != nil {
+		return err
+	}
+
+	create, err := poolCreateDecision(exists, poolID, machineRequestSet)
+	if err != nil {
+		return err
+	}
+
+	if !create {
+		return nil
+	}
+
+	logger.Info("creating proxmox pool", zap.String("pool", poolID))
+
+	return p.proxmoxClient.NewPool(ctx, poolID, poolComment)
+}
+
+// Errors are swallowed on purpose: pool cleanup must not fail deprovision.
+func (p *Provisioner) cleanupPool(ctx context.Context, logger *zap.Logger, poolID string) {
+	p.poolMu.Lock()
+	defer p.poolMu.Unlock()
+
+	comment, exists, err := p.findPoolInList(ctx, poolID)
+	if err != nil {
+		logger.Warn("failed to list proxmox pools during cleanup", zap.String("pool", poolID), zap.Error(err))
+
+		return
+	}
+
+	if !exists || comment != poolComment {
+		return
+	}
+
+	// List doesn't return members, so hit the detail endpoint before deciding
+	// whether to delete.
+	detail, err := p.proxmoxClient.Pool(ctx, poolID)
+	if err != nil {
+		logger.Warn("failed to load proxmox pool detail during cleanup", zap.String("pool", poolID), zap.Error(err))
+
+		return
+	}
+
+	if detail.Comment != poolComment || len(detail.Members) != 0 {
+		return
+	}
+
+	if err := detail.Delete(ctx); err != nil {
+		logger.Warn("failed to delete proxmox pool", zap.String("pool", poolID), zap.Error(err))
+
+		return
+	}
+
+	logger.Info("deleted empty proxmox pool", zap.String("pool", poolID))
 }
 
 func (p *Provisioner) pickStorage(ctx context.Context, node *proxmox.Node, selector string) (string, error) {

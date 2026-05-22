@@ -12,6 +12,8 @@ import (
 	"github.com/siderolabs/omni-infra-provider-proxmox/internal/pkg/provider"
 )
 
+const talosWorkers = "talos-workers"
+
 func TestPickNode(t *testing.T) {
 	const (
 		nodeA = "NodeA"
@@ -77,6 +79,96 @@ func TestPickNode(t *testing.T) {
 
 			// Assert
 			require.Equal(t, tt.expected, result.Name)
+		})
+	}
+}
+
+func TestPoolCreateDecision(t *testing.T) {
+	tests := []struct {
+		name              string
+		poolID            string
+		machineRequestSet string
+		exists            bool
+		expectedCreate    bool
+		expectedErr       bool
+	}{
+		{
+			name:              "Pool exists: no-op",
+			poolID:            "my-pool",
+			machineRequestSet: talosWorkers,
+			exists:            true,
+			expectedCreate:    false,
+		},
+		{
+			name:              "Pool absent, matches machine request set: create",
+			poolID:            talosWorkers,
+			machineRequestSet: talosWorkers,
+			expectedCreate:    true,
+		},
+		{
+			name:              "Pool absent, user-specified: refuse",
+			poolID:            "gpu-pool",
+			machineRequestSet: talosWorkers,
+			expectedErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			create, err := provider.PoolCreateDecision(tt.exists, tt.poolID, tt.machineRequestSet)
+
+			if tt.expectedErr {
+				require.Error(t, err)
+				require.False(t, create)
+
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedCreate, create)
+		})
+	}
+}
+
+func TestBuildTagsOption(t *testing.T) {
+	tests := []struct {
+		name              string
+		machineRequestSet string
+		expectedValue     string
+		userTags          []string
+		expectedOk        bool
+	}{
+		{
+			name:       "No user tags, no request set",
+			expectedOk: false,
+		},
+		{
+			name:              "Request set only",
+			machineRequestSet: talosWorkers,
+			expectedValue:     "machine-request.talos-workers",
+			expectedOk:        true,
+		},
+		{
+			name:          "User tags only",
+			userTags:      []string{"talos-node", "prod"},
+			expectedValue: "talos-node;prod",
+			expectedOk:    true,
+		},
+		{
+			name:              "User tags first, internal tag last",
+			userTags:          []string{"talos-node", "prod"},
+			machineRequestSet: talosWorkers,
+			expectedValue:     "talos-node;prod;machine-request.talos-workers",
+			expectedOk:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			value, ok := provider.BuildTagsOption(tt.userTags, tt.machineRequestSet)
+
+			require.Equal(t, tt.expectedOk, ok)
+			require.Equal(t, tt.expectedValue, value)
 		})
 	}
 }
