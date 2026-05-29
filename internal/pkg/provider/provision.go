@@ -38,6 +38,7 @@ const (
 // Provisioner implements Talos emulator infra provider.
 type Provisioner struct {
 	proxmoxClient         *proxmox.Client
+	scheduler             *scheduler
 	pendingISODownloads   map[string]string
 	pendingISODownloadsMu sync.Mutex
 	poolMu                sync.Mutex
@@ -47,6 +48,7 @@ type Provisioner struct {
 func NewProvisioner(proxmoxClient *proxmox.Client) *Provisioner {
 	return &Provisioner{
 		proxmoxClient:       proxmoxClient,
+		scheduler:           newScheduler(),
 		pendingISODownloads: make(map[string]string),
 	}
 }
@@ -57,6 +59,10 @@ func NewProvisioner(proxmoxClient *proxmox.Client) *Provisioner {
 func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 	return []provision.Step[*resources.Machine]{
 		provision.NewStep("pickNode", func(ctx context.Context, logger *zap.Logger, pctx provision.Context[*resources.Machine]) error {
+			if pctx.State.TypedSpec().Value.Node != "" {
+				return nil
+			}
+
 			var data Data
 
 			if err := pctx.UnmarshalProviderData(&data); err != nil {
@@ -91,7 +97,10 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				return fmt.Errorf("specified node %q not found in cluster", data.Node)
 			}
 
+			machineRequestSet, inSet := pctx.GetMachineRequestSetID()
+
 			nodeInfoList := make([]nodeStatus, 0, len(nodes))
+			materialized := map[string]struct{}{}
 
 			for _, node := range nodes {
 				// Skip nodes that are not online to avoid Proxmox API errors
@@ -106,7 +115,7 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				ns.Name = node.Node
 				ns.MemoryFree = float64(node.MaxMem-node.Mem) / float64(node.MaxMem)
 
-				if machineRequestSet, ok := pctx.GetMachineRequestSetID(); ok {
+				if inSet {
 					n, err := p.proxmoxClient.Node(ctx, node.Node)
 					if err != nil {
 						return fmt.Errorf("failed to get node %q, %w", node.Node, err)
@@ -114,12 +123,13 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 
 					vms, err := n.VirtualMachines(ctx)
 					if err != nil {
-						return fmt.Errorf("failed to get vms for now %q, %w", node.Node, err)
+						return fmt.Errorf("failed to get vms for node %q, %w", node.Node, err)
 					}
 
 					for _, vm := range vms {
 						if vm.HasTag(machineRequestTagPrefix + machineRequestSet) {
-							ns.SameMachineRequestSetVMs += 1
+							ns.SameMachineRequestSetVMs++
+							materialized[vm.Name] = struct{}{}
 						}
 					}
 				}
@@ -131,7 +141,13 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				return fmt.Errorf("no online nodes available for provisioning")
 			}
 
-			pickedNode := pickNode(nodeInfoList)
+			var pickedNode nodeStatus
+
+			if inSet {
+				pickedNode = p.scheduler.pick(nodeInfoList, machineRequestSet, pctx.GetRequestID(), materialized)
+			} else {
+				pickedNode = pickNode(nodeInfoList)
+			}
 
 			pctx.State.TypedSpec().Value.Node = pickedNode.Name
 

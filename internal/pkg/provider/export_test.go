@@ -4,6 +4,8 @@
 
 package provider
 
+import "time"
+
 type NodeStatus = nodeStatus
 
 func PickNode(nodes []NodeStatus) NodeStatus {
@@ -16,4 +18,18 @@ func BuildTagsOption(userTags []string, machineRequestSet string) (string, bool)
 
 func PoolCreateDecision(exists bool, poolID, machineRequestSet string) (bool, error) {
 	return poolCreateDecision(exists, poolID, machineRequestSet)
+}
+
+type Scheduler = scheduler
+
+func NewScheduler() *Scheduler {
+	return newScheduler()
+}
+
+func NewSchedulerWithClock(now func() time.Time, ttl time.Duration) *Scheduler {
+	return newSchedulerWithClock(now, ttl)
+}
+
+func (s *scheduler) Pick(nodes []NodeStatus, set, requestID string, materialized map[string]struct{}) NodeStatus {
+	return s.pick(nodes, set, requestID, materialized)
 }
