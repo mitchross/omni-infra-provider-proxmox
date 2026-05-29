@@ -13,29 +13,32 @@ type Data struct {
 	HA *ha.Config `yaml:"ha,omitempty"`
 	// NetworkFirewall enables the per-VM firewall (fwbr) on the primary NIC.
 	// Defaults to true. Set false when L2-broadcast services need traffic to bypass fwbr.
-	NetworkFirewall *bool            `yaml:"network_firewall,omitempty"`
-	Node            string           `yaml:"node,omitempty"`
-	StorageSelector string           `yaml:"storage_selector,omitempty"`
-	NetworkBridge   string           `yaml:"network_bridge"`
-	Hugepages       string           `yaml:"hugepages,omitempty"`
-	MachineType     string           `yaml:"machine_type,omitempty"`
-	CPUType         string           `yaml:"cpu_type,omitempty"`
-	DiskAIO         string           `yaml:"disk_aio,omitempty"`
-	DiskCache       string           `yaml:"disk_cache,omitempty"`
-	Pool            string           `yaml:"pool,omitempty"`
-	AdditionalDisks []AdditionalDisk `yaml:"additional_disks,omitempty"`
-	AdditionalNICs  []AdditionalNIC  `yaml:"additional_nics,omitempty"`
-	PCIDevices      []PCIDevice      `yaml:"pci_devices,omitempty"`
-	Tags            []string         `yaml:"tags,omitempty"`
-	Vlan            uint64           `yaml:"vlan"`
-	Memory          uint64           `yaml:"memory"`
-	Sockets         int              `yaml:"sockets"`
-	DiskSize        int              `yaml:"disk_size"`
-	Cores           int              `yaml:"cores"`
-	DiskIOThread    bool             `yaml:"disk_iothread,omitempty"`
-	NUMA            bool             `yaml:"numa,omitempty"`
-	DiskDiscard     bool             `yaml:"disk_discard,omitempty"`
-	DiskSSD         bool             `yaml:"disk_ssd,omitempty"`
+	NetworkFirewall *bool  `yaml:"network_firewall,omitempty"`
+	Node            string `yaml:"node,omitempty"`
+	StorageSelector string `yaml:"storage_selector,omitempty"`
+	NetworkBridge   string `yaml:"network_bridge"`
+	Hugepages       string `yaml:"hugepages,omitempty"`
+	MachineType     string `yaml:"machine_type,omitempty"`
+	CPUType         string `yaml:"cpu_type,omitempty"`
+	DiskAIO         string `yaml:"disk_aio,omitempty"`
+	DiskCache       string `yaml:"disk_cache,omitempty"`
+	Pool            string `yaml:"pool,omitempty"`
+	// PlacementStrategy selects how a node is chosen for an auto-provisioned VM:
+	// spread (default), fewer-vms, round-robin or binpack.
+	PlacementStrategy string           `yaml:"placement_strategy,omitempty"`
+	AdditionalDisks   []AdditionalDisk `yaml:"additional_disks,omitempty"`
+	AdditionalNICs    []AdditionalNIC  `yaml:"additional_nics,omitempty"`
+	PCIDevices        []PCIDevice      `yaml:"pci_devices,omitempty"`
+	Tags              []string         `yaml:"tags,omitempty"`
+	Vlan              uint64           `yaml:"vlan"`
+	Memory            uint64           `yaml:"memory"`
+	Sockets           int              `yaml:"sockets"`
+	DiskSize          int              `yaml:"disk_size"`
+	Cores             int              `yaml:"cores"`
+	DiskIOThread      bool             `yaml:"disk_iothread,omitempty"`
+	NUMA              bool             `yaml:"numa,omitempty"`
+	DiskDiscard       bool             `yaml:"disk_discard,omitempty"`
+	DiskSSD           bool             `yaml:"disk_ssd,omitempty"`
 }
 
 // AdditionalDisk represents an additional disk configuration.

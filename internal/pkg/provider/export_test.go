@@ -30,8 +30,16 @@ func NewSchedulerWithClock(now func() time.Time, ttl time.Duration) *Scheduler {
 	return newSchedulerWithClock(now, ttl)
 }
 
-func (s *scheduler) Pick(nodes []NodeStatus, set, requestID string, materialized map[string]struct{}) NodeStatus {
-	return s.pick(nodes, set, requestID, materialized)
+func (s *scheduler) Pick(nodes []NodeStatus, set, requestID string, memory uint64, strategy string, materialized map[string]struct{}) NodeStatus {
+	strat, _ := parseStrategy(strategy)
+
+	return s.pick(nodes, set, requestID, memory, strat, materialized)
+}
+
+func ParseStrategy(s string) (string, error) {
+	strat, err := parseStrategy(s)
+
+	return string(strat), err
 }
 
 func (s *scheduler) Release(requestID string) {
