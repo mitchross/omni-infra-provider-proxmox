@@ -37,6 +37,7 @@ type MachineSpec struct {
 	VmStartTask      string                 `protobuf:"bytes,8,opt,name=vm_start_task,json=vmStartTask,proto3" json:"vm_start_task,omitempty"`
 	Vmid             int32                  `protobuf:"varint,11,opt,name=vmid,proto3" json:"vmid,omitempty"`
 	Pool             string                 `protobuf:"bytes,12,opt,name=pool,proto3" json:"pool,omitempty"`
+	HaRegistered     bool                   `protobuf:"varint,13,opt,name=ha_registered,json=haRegistered,proto3" json:"ha_registered,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -141,11 +142,18 @@ func (x *MachineSpec) GetPool() string {
 	return ""
 }
 
+func (x *MachineSpec) GetHaRegistered() bool {
+	if x != nil {
+		return x.HaRegistered
+	}
+	return false
+}
+
 var File_specs_specs_proto protoreflect.FileDescriptor
 
 const file_specs_specs_proto_rawDesc = "" +
 	"\n" +
-	"\x11specs/specs.proto\x12\bemuspecs\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\"\xb5\x02\n" +
+	"\x11specs/specs.proto\x12\bemuspecs\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\"\xda\x02\n" +
 	"\vMachineSpec\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1c\n" +
 	"\tschematic\x18\x02 \x01(\tR\tschematic\x12#\n" +
@@ -156,7 +164,8 @@ const file_specs_specs_proto_rawDesc = "" +
 	"\x0evm_create_task\x18\a \x01(\tR\fvmCreateTask\x12\"\n" +
 	"\rvm_start_task\x18\b \x01(\tR\vvmStartTask\x12\x12\n" +
 	"\x04vmid\x18\v \x01(\x05R\x04vmid\x12\x12\n" +
-	"\x04pool\x18\f \x01(\tR\x04poolB=Z;github.com/siderolabs/omni-infra-provider-proxmox/api/specsb\x06proto3"
+	"\x04pool\x18\f \x01(\tR\x04pool\x12#\n" +
+	"\rha_registered\x18\r \x01(\bR\fhaRegisteredB=Z;github.com/siderolabs/omni-infra-provider-proxmox/api/specsb\x06proto3"
 
 var (
 	file_specs_specs_proto_rawDescOnce sync.Once

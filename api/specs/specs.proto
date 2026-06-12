@@ -18,4 +18,5 @@ message MachineSpec {
   string vm_start_task = 8;
   int32 vmid = 11;
   string pool = 12;
+  bool ha_registered = 13;
 }
