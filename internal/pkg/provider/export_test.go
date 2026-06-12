@@ -37,3 +37,7 @@ func (s *scheduler) Pick(nodes []NodeStatus, set, requestID string, materialized
 func (s *scheduler) Release(requestID string) {
 	s.release(requestID)
 }
+
+func ShouldCountSetVMs(data Data, hasSet bool) bool {
+	return shouldCountSetVMs(data, hasSet)
+}

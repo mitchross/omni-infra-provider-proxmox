@@ -27,6 +27,7 @@ import (
 	siderocel "github.com/siderolabs/talos/pkg/machinery/cel"
 	"go.uber.org/zap"
 
+	"github.com/siderolabs/omni-infra-provider-proxmox/internal/pkg/provider/ha"
 	"github.com/siderolabs/omni-infra-provider-proxmox/internal/pkg/provider/resources"
 )
 
@@ -37,6 +38,7 @@ const (
 
 // Provisioner implements Talos emulator infra provider.
 type Provisioner struct {
+	ha                    *ha.Manager
 	proxmoxClient         *proxmox.Client
 	scheduler             *scheduler
 	pendingISODownloads   map[string]string
@@ -49,6 +51,7 @@ func NewProvisioner(proxmoxClient *proxmox.Client) *Provisioner {
 	return &Provisioner{
 		proxmoxClient:       proxmoxClient,
 		scheduler:           newScheduler(),
+		ha:                  ha.NewManager(proxmoxClient),
 		pendingISODownloads: make(map[string]string),
 	}
 }
@@ -115,7 +118,7 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				ns.Name = node.Node
 				ns.MemoryFree = float64(node.MaxMem-node.Mem) / float64(node.MaxMem)
 
-				if inSet {
+				if shouldCountSetVMs(data, inSet) {
 					n, err := p.proxmoxClient.Node(ctx, node.Node)
 					if err != nil {
 						return fmt.Errorf("failed to get node %q, %w", node.Node, err)
@@ -632,6 +635,8 @@ hostname: %s`,
 
 			return nil
 		}),
+		provision.NewStep("registerHA", p.ha.RegisterStep),
+		provision.NewStep("syncHARules", p.ha.SyncRulesStep),
 	}
 }
 
@@ -645,11 +650,38 @@ func (p *Provisioner) Deprovision(ctx context.Context, logger *zap.Logger, machi
 		return nil
 	}
 
-	if machine.TypedSpec().Value.Node == "" {
-		return errors.New("VM is missing the node information")
+	if err := p.ha.Deprovision(ctx, logger, machine); err != nil {
+		return err
 	}
 
-	vm, err := p.getVM(ctx, machine.TypedSpec().Value.Node, machine.TypedSpec().Value.Vmid)
+	haRegistered := machine.TypedSpec().Value.HaRegistered
+
+	var (
+		node  string
+		found bool
+	)
+
+	if haRegistered {
+		var err error
+
+		node, found, err = p.ha.FindVMNode(ctx, machine.TypedSpec().Value.Vmid)
+		if err != nil {
+			return err
+		}
+	} else {
+		node = machine.TypedSpec().Value.Node
+		found = node != ""
+	}
+
+	if !found {
+		if pool := machine.TypedSpec().Value.Pool; pool != "" {
+			p.cleanupPool(ctx, logger, pool)
+		}
+
+		return nil
+	}
+
+	vm, err := p.getVM(ctx, node, machine.TypedSpec().Value.Vmid)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			return nil
@@ -893,6 +925,11 @@ type nodeStatus struct {
 	Name                     string
 	MemoryFree               float64
 	SameMachineRequestSetVMs int
+}
+
+// shouldCountSetVMs disables the client-side set spread under HA, where Proxmox owns placement.
+func shouldCountSetVMs(data Data, hasSet bool) bool {
+	return hasSet && data.HA == nil
 }
 
 func pickNode(nodeInfoList []nodeStatus) nodeStatus {

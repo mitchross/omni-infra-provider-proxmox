@@ -125,6 +125,29 @@ config:
 
 Replace `"local-lvm"` with the name of the storage you want to use for VM disks in your Proxmox cluster.
 
+### High Availability
+
+Adding an `ha:` block to the machine class registers each provisioned VM as a Proxmox HA resource
+and maintains node-affinity / resource-affinity rules per machine request set
+(requires Proxmox VE 9+):
+
+```yaml
+config:
+  ...
+  ha:
+    state: started
+    resource_affinity: negative # spread the set's VMs across nodes
+    node_affinity_nodes:
+      - pve1
+      - pve2
+```
+
+When `ha:` is set, node placement is delegated to Proxmox HA and the provider's
+client-side spread is disabled.
+For dynamic rebalancing, enable the cluster resource scheduler in `datacenter.cfg`
+(`crs: ha=dynamic`, Proxmox VE 9.2+).
+See the [Proxmox HA manager documentation](https://pve.proxmox.com/pve-docs/chapter-ha-manager.html).
+
 ### Using Executable
 
 Build the project (should have docker and buildx installed):

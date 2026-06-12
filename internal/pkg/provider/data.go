@@ -4,9 +4,13 @@
 
 package provider
 
+import "github.com/siderolabs/omni-infra-provider-proxmox/internal/pkg/provider/ha"
+
 // Data is the provider custom machine config.
 type Data struct {
 	Balloon *bool `yaml:"balloon,omitempty"`
+	// HA registers the VM as a Proxmox HA resource; its presence also hands placement to HA (pickNode stops spreading the set).
+	HA *ha.Config `yaml:"ha,omitempty"`
 	// NetworkFirewall enables the per-VM firewall (fwbr) on the primary NIC.
 	// Defaults to true. Set false when L2-broadcast services need traffic to bypass fwbr.
 	NetworkFirewall *bool            `yaml:"network_firewall,omitempty"`

@@ -114,6 +114,72 @@
       },
       "description": "Proxmox VM tags"
     },
+    "ha": {
+      "type": "object",
+      "title": "High Availability",
+      "description": "Register the VM as a Proxmox HA resource. When set, the provider stops picking nodes for this machine set; Proxmox HA owns placement. Requires Proxmox VE 9+.",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "started",
+            "stopped",
+            "disabled",
+            "ignored"
+          ],
+          "description": "HA target state (default: started). The ha fields are reconciled on every provision, so a later edit takes effect. 'started': VM runs and HA restarts it on failure. 'stopped': stopped but HA-managed. 'disabled': resource defined, HA ignores it. 'ignored': removed from HA management."
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 4096,
+          "description": "Human-readable comment on the HA resource."
+        },
+        "max_restart": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Max restart attempts on the current node (Proxmox default: 1)."
+        },
+        "max_relocate": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Max relocate attempts once restarts are exhausted (Proxmox default: 1)."
+        },
+        "failback": {
+          "type": "boolean",
+          "description": "When true, HA returns the VM to its preferred node once that node is back online."
+        },
+        "rules": {
+          "type": "array",
+          "description": "Proxmox HA rule names to add the VM to (Proxmox 9+; alphanumeric, dash and underscore). A VM may belong to multiple rules.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "maxLength": 64
+          }
+        },
+        "node_affinity_nodes": {
+          "type": "array",
+          "description": "List of Proxmox node names used as the auto-managed node-affinity target set. The provider derives a per-machine-class node-affinity rule from this list; it is independent of the user-supplied 'rules' field. Applied when the rule is first created; later edits to the node set are ignored (change the rule in the Proxmox UI or pvesh).",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]*$",
+            "maxLength": 63
+          }
+        },
+        "node_affinity_strict": {
+          "type": "boolean",
+          "description": "When true, mark the auto-managed node-affinity rule as strict, so the HA manager will never run VMs outside the configured node set. Defaults to false (soft affinity). Applies only to the rule derived from 'node_affinity_nodes', not to entries in 'rules'. Applied when the rule is first created; later edits are ignored."
+        },
+        "resource_affinity": {
+          "type": "string",
+          "enum": [
+            "negative",
+            "positive"
+          ],
+          "description": "Resource affinity direction for the HA rule. 'negative' spreads VMs across nodes; 'positive' colocates them. Applied when the rule is first created; later edits to the direction are ignored (change the rule in the Proxmox UI or pvesh)."
+        }
+      }
+    },
     "additional_nics": {
       "type": "array",
       "description": "Additional network interfaces (e.g., for storage networks)",

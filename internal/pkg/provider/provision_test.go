@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/siderolabs/omni-infra-provider-proxmox/internal/pkg/provider"
+	"github.com/siderolabs/omni-infra-provider-proxmox/internal/pkg/provider/ha"
 )
 
 const (
@@ -85,6 +86,26 @@ func TestPickNode(t *testing.T) {
 
 			// Assert
 			require.Equal(t, tt.expected, result.Name)
+		})
+	}
+}
+
+func TestShouldCountSetVMs(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     provider.Data
+		hasSet   bool
+		expected bool
+	}{
+		{name: "set, no HA: spread", hasSet: true, expected: true},
+		{name: "set, HA: no spread", data: provider.Data{HA: &ha.Config{}}, hasSet: true, expected: false},
+		{name: "no set, no HA: no spread", hasSet: false, expected: false},
+		{name: "no set, HA: no spread", data: provider.Data{HA: &ha.Config{}}, hasSet: false, expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, provider.ShouldCountSetVMs(tt.data, tt.hasSet))
 		})
 	}
 }
