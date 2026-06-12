@@ -6,7 +6,7 @@ require (
 	github.com/cosi-project/runtime v1.16.1
 	github.com/google/cel-go v0.28.1
 	github.com/google/uuid v1.6.0
-	github.com/luthermonson/go-proxmox v0.5.1
+	github.com/luthermonson/go-proxmox v0.7.1
 	github.com/planetscale/vtprotobuf v0.6.1-0.20250313105119-ba97887b0a25
 	github.com/siderolabs/omni/client v1.8.0-beta.1.0.20260526080537-fa2f11fc0a64
 	github.com/siderolabs/talos/pkg/machinery v1.13.3
