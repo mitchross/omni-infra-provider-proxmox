@@ -72,11 +72,6 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				return err
 			}
 
-			strat, err := parseStrategy(data.PlacementStrategy)
-			if err != nil {
-				return err
-			}
-
 			nodes, err := p.proxmoxClient.Nodes(ctx)
 			if err != nil {
 				return err
@@ -105,6 +100,11 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				return fmt.Errorf("specified node %q not found in cluster", data.Node)
 			}
 
+			strat, err := parseStrategy(data.PlacementStrategy)
+			if err != nil {
+				return err
+			}
+
 			machineRequestSet, inSet := pctx.GetMachineRequestSetID()
 
 			nodeInfoList := make([]nodeStatus, 0, len(nodes))
@@ -121,13 +121,15 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				var ns nodeStatus
 
 				ns.Name = node.Node
-				ns.MemoryFree = float64(node.MaxMem-node.Mem) / float64(node.MaxMem)
 
-				// FreeMem is unsigned; guard the subtraction in case Proxmox ever
-				// reports used memory above the node total.
-				// (hopefully that stray universal electron and caffeinated devs won't ever cause this)
+				// MaxMem/Mem are unsigned; guard the subtraction in case Proxmox ever
+				// reports used memory above the node total, and avoid div-by-zero.
 				if node.MaxMem > node.Mem {
 					ns.FreeMem = node.MaxMem - node.Mem
+				}
+
+				if node.MaxMem > 0 {
+					ns.MemoryFree = float64(ns.FreeMem) / float64(node.MaxMem)
 				}
 
 				if shouldCountSetVMs(data, inSet) {
