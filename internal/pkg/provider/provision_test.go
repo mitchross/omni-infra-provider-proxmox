@@ -13,7 +13,12 @@ import (
 	"github.com/siderolabs/omni-infra-provider-proxmox/internal/pkg/provider"
 )
 
-const talosWorkers = "talos-workers"
+const (
+	talosWorkers = "talos-workers"
+
+	nodeAName = "node-a"
+	nodeBName = "node-b"
+)
 
 func TestPickNode(t *testing.T) {
 	const (
@@ -179,19 +184,19 @@ func TestSchedulerSpreadsInFlightPlacements(t *testing.T) {
 
 	nodes := func() []provider.NodeStatus {
 		return []provider.NodeStatus{
-			{Name: "node-a", MemoryFree: 0.9},
-			{Name: "node-b", MemoryFree: 0.8},
+			{Name: nodeAName, MemoryFree: 0.9},
+			{Name: nodeBName, MemoryFree: 0.8},
 			{Name: "node-c", MemoryFree: 0.7},
 		}
 	}
 
-	var picked []string
+	picked := make([]string, 0, 3)
 
 	for _, requestID := range []string{"worker-1", "worker-2", "worker-3"} {
 		picked = append(picked, s.Pick(nodes(), talosWorkers, requestID, nil).Name)
 	}
 
-	require.ElementsMatch(t, []string{"node-a", "node-b", "node-c"}, picked)
+	require.ElementsMatch(t, []string{nodeAName, nodeBName, "node-c"}, picked)
 }
 
 func TestSchedulerReleasesMaterializedReservations(t *testing.T) {
@@ -199,17 +204,17 @@ func TestSchedulerReleasesMaterializedReservations(t *testing.T) {
 
 	twoNodes := func(proxmoxOnA int) []provider.NodeStatus {
 		return []provider.NodeStatus{
-			{Name: "node-a", MemoryFree: 1.0, SameMachineRequestSetVMs: proxmoxOnA},
-			{Name: "node-b", MemoryFree: 0.9},
+			{Name: nodeAName, MemoryFree: 1.0, SameMachineRequestSetVMs: proxmoxOnA},
+			{Name: nodeBName, MemoryFree: 0.9},
 		}
 	}
 
-	require.Equal(t, "node-a", s.Pick(twoNodes(0), talosWorkers, "worker-1", nil).Name)
-	require.Equal(t, "node-b", s.Pick(twoNodes(0), talosWorkers, "worker-2", nil).Name)
+	require.Equal(t, nodeAName, s.Pick(twoNodes(0), talosWorkers, "worker-1", nil).Name)
+	require.Equal(t, nodeBName, s.Pick(twoNodes(0), talosWorkers, "worker-2", nil).Name)
 
 	picked := s.Pick(twoNodes(1), talosWorkers, "worker-3", map[string]struct{}{"worker-1": {}})
 
-	require.Equal(t, "node-a", picked.Name)
+	require.Equal(t, nodeAName, picked.Name)
 }
 
 func TestSchedulerExpiresStaleReservations(t *testing.T) {
@@ -218,14 +223,14 @@ func TestSchedulerExpiresStaleReservations(t *testing.T) {
 
 	nodes := func() []provider.NodeStatus {
 		return []provider.NodeStatus{
-			{Name: "node-a", MemoryFree: 1.0},
-			{Name: "node-b", MemoryFree: 0.9},
+			{Name: nodeAName, MemoryFree: 1.0},
+			{Name: nodeBName, MemoryFree: 0.9},
 		}
 	}
 
-	require.Equal(t, "node-a", s.Pick(nodes(), talosWorkers, "worker-1", nil).Name)
+	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, "worker-1", nil).Name)
 
 	now = now.Add(2 * time.Minute)
 
-	require.Equal(t, "node-a", s.Pick(nodes(), talosWorkers, "worker-2", nil).Name)
+	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, "worker-2", nil).Name)
 }
