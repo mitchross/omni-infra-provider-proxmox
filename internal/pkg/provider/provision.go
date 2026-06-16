@@ -226,11 +226,20 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 			}
 
 			if existing, ok := p.pendingISODownloads[isoUploadID]; ok {
-				logger.Info("ISO image is already being downloaded, reusing the existing task", zap.String("volumeID", isoName), zap.String("task", existing))
+				if p.isTaskLive(ctx, existing) {
+					logger.Info("ISO image is already being downloaded, reusing the existing task", zap.String("volumeID", isoName), zap.String("task", existing))
 
-				pctx.State.TypedSpec().Value.VolumeUploadTask = existing
+					pctx.State.TypedSpec().Value.VolumeUploadTask = existing
 
-				return provision.NewRetryInterval(time.Second)
+					return provision.NewRetryInterval(time.Second)
+				}
+
+				// The previously tracked download is no longer running and the ISO never
+				// landed, so drop the stale entry and fall through to start a fresh
+				// download instead of pinning every machine to a dead task.
+				logger.Info("previous ISO download task is no longer running, restarting download", zap.String("volumeID", isoName), zap.String("task", existing))
+
+				delete(p.pendingISODownloads, isoUploadID)
 			}
 
 			task, err := storage.DownloadURL(ctx, "iso", isoName, url.String())
@@ -803,6 +812,20 @@ func (p *Provisioner) getVM(ctx context.Context, nodeName string, vmid int32) (*
 	}
 
 	return node.VirtualMachine(ctx, int(vmid))
+}
+
+// isTaskLive reports whether the task identified by id is still running or has
+// already completed successfully. A failed, stopped or no-longer-known task
+// returns false so the caller can re-issue the work instead of waiting on a
+// task that will never finish.
+func (p *Provisioner) isTaskLive(ctx context.Context, id string) bool {
+	t := proxmox.NewTask(proxmox.UPID(id), p.proxmoxClient)
+
+	if err := t.Ping(ctx); err != nil {
+		return false
+	}
+
+	return t.IsRunning || t.IsSuccessful
 }
 
 func (p *Provisioner) checkTaskStatus(ctx context.Context, id string) error {
