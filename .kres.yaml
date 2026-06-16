@@ -38,6 +38,8 @@ spec:
   steps:
     - name: run-integration-test
       toplevel: true
+    - name: run-integration-test-ha
+      toplevel: true
 ---
 kind: custom.Step
 name: run-integration-test
@@ -64,6 +66,37 @@ spec:
         - "!_out/omni/"
       additional:
         - name: omni-logs
+          always: true
+          continueOnError: true
+          paths:
+            - "/tmp/proxmox-e2e/*.log"
+---
+kind: custom.Step
+name: run-integration-test-ha
+spec:
+  sudoInCI: true
+  makefile:
+    enabled: true
+    depends:
+      - omni-infra-provider-proxmox
+    script:
+      - >-
+        @hack/test/integration.sh
+  ghaction:
+    condition: on-pull-request
+    enabled: true
+    sops: true
+    environment:
+      WITH_HA_MODE: "true"
+    parallelJob:
+      name: integration-test-ha
+      runnerGroup: large
+      needsOverride: [default, lint, unit-tests]
+    artifacts:
+      enabled: true
+      skipDefaultArtifacts: true
+      additional:
+        - name: omni-logs-ha
           always: true
           continueOnError: true
           paths:

@@ -324,6 +324,16 @@ nice -n 10 ${ARTIFACTS}/omni-infra-provider-proxmox-linux-amd64 \
   --config-file ${TMP}/proxmox-config.yaml \
   --insecure-skip-verify &
 
+# Provider machine-class config for the auto-provision suite. WITH_HA_MODE appends an ha: block
+# so the run also exercises the provider's HA registration and affinity-rule reconciliation. The
+# containerized nodes can't run HA at runtime (no hardware watchdog), so this covers the HA
+# provisioning path, not failover. Kept single-quoted so the inner \"local\" escaping survives.
+PROVIDER_DATA='disk_size: 8, cores: 4, memory: 2048, sockets: 1, network_bridge: vmbr2, storage_selector: "name == \"local\""'
+
+if [[ "${WITH_HA_MODE:-false}" == "true" ]]; then
+  PROVIDER_DATA="${PROVIDER_DATA}, ha: {node_affinity_nodes: [pve-1, pve-2], resource_affinity: positive}"
+fi
+
 docker run \
   -v $(pwd)/hack/certs:/etc/ssl/certs \
   -e SSL_CERT_DIR=/etc/ssl/certs \
@@ -335,7 +345,7 @@ docker run \
   --test.run "TestIntegration/Suites/(ScaleUpAndDownAutoProvisionMachineSets)" \
   --omni.infra-provider=proxmox \
   --omni.scale-timeout 20m \
-  --omni.provider-data='{disk_size: 8, cores: 4, memory: 2048, sockets: 1, network_bridge: vmbr2, storage_selector: "name == \"local\""}' \
+  --omni.provider-data="{${PROVIDER_DATA}}" \
   --test.failfast \
   --omni.kubernetes-version=${K8S_VERSION} \
   --test.v
