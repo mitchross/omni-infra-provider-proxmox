@@ -35,14 +35,6 @@ const ruleRetries = 10
 
 var ruleNameInvalid = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 
-// ruleNameValid and nodeNameValid mirror the schema.json patterns so a
-// hand-written machine class is rejected by the same contract as the Omni UI
-// (node names, being hostnames, disallow the underscore rule names allow).
-var (
-	ruleNameValid = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
-	nodeNameValid = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]*$`)
-)
-
 // classify maps Proxmox's 500 reason-phrases onto these sentinels, wrapping
 // the original so errors.Is matches both. go-proxmox has no typed errors for
 // them; the raw status line is the only contract.
@@ -85,38 +77,6 @@ type Config struct {
 	ResourceAffinity   string   `yaml:"resource_affinity,omitempty"`
 	Rules              []string `yaml:"rules,omitempty"`
 	NodeAffinityNodes  []string `yaml:"node_affinity_nodes,omitempty"`
-}
-
-// Validate rejects values Proxmox would only reject mid-provision with a cryptic
-// error. The JSON schema guards the Omni UI; this covers a hand-written class.
-func (c *Config) Validate() error {
-	switch c.State {
-	case "", "started", "stopped", "disabled", "ignored":
-	default:
-		return fmt.Errorf("invalid ha.state %q (expected started, stopped, disabled, or ignored)", c.State)
-	}
-
-	switch c.ResourceAffinity {
-	case "", "negative", "positive":
-	default:
-		return fmt.Errorf("invalid ha.resource_affinity %q (expected negative or positive)", c.ResourceAffinity)
-	}
-
-	// rule and node names reach the REST path and comma-separated body verbatim,
-	// so reject anything off-charset (a stray comma would inject a list entry).
-	for _, name := range c.Rules {
-		if !ruleNameValid.MatchString(name) {
-			return fmt.Errorf("invalid ha.rules entry %q (allowed: letters, digits, dash, underscore; must start with a letter or digit)", name)
-		}
-	}
-
-	for _, node := range c.NodeAffinityNodes {
-		if !nodeNameValid.MatchString(node) {
-			return fmt.Errorf("invalid ha.node_affinity_nodes entry %q (allowed: letters, digits, dash; must start with a letter or digit)", node)
-		}
-	}
-
-	return nil
 }
 
 func createOption(cfg Config, sid string) *proxmox.HAResourceCreateOption {
@@ -497,10 +457,6 @@ func (m *Manager) config(pctx provision.Context[*resources.Machine]) (*Config, s
 		}
 
 		return nil, "", false, nil
-	}
-
-	if err := data.HA.Validate(); err != nil {
-		return nil, "", false, err
 	}
 
 	vmid := pctx.State.TypedSpec().Value.Vmid

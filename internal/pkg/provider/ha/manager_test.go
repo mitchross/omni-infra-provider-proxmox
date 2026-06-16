@@ -79,26 +79,6 @@ func fail500(t *testing.T, w http.ResponseWriter, reason string) {
 	require.NoError(t, bufrw.Flush())
 }
 
-func TestConfigValidate(t *testing.T) {
-	require.NoError(t, (&ha.Config{
-		State: "started", ResourceAffinity: affNegative,
-		Rules: []string{"valid-rule_1"}, NodeAffinityNodes: []string{pve1},
-	}).Validate())
-
-	for name, cfg := range map[string]*ha.Config{
-		"bad state":            {State: "bogus"},
-		"bad affinity":         {ResourceAffinity: "sideways"},
-		"rule path traversal":  {Rules: []string{"../escape"}},
-		"rule comma injection": {Rules: []string{"a,b"}},
-		"rule leading symbol":  {Rules: []string{"_rule"}},
-		"node comma injection": {NodeAffinityNodes: []string{"pve1,pve2"}},
-		"node underscore":      {NodeAffinityNodes: []string{"node_1"}},
-		"node whitespace":      {NodeAffinityNodes: []string{"pve 1"}},
-	} {
-		t.Run(name, func(t *testing.T) { require.Error(t, cfg.Validate()) })
-	}
-}
-
 func TestResourceAffinityDeferredUntilTwoMembers(t *testing.T) {
 	var created atomic.Int32
 
