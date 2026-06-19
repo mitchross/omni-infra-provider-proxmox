@@ -42,6 +42,7 @@ var (
 	errNotFound      = errors.New("ha: not found")
 	errAlreadyExists = errors.New("ha: already exists")
 	errConflict      = errors.New("ha: digest conflict")
+	errInfeasible    = errors.New("ha: rule infeasible")
 )
 
 func classify(err error) error {
@@ -60,6 +61,11 @@ func classify(err error) error {
 		return fmt.Errorf("%w: %w", errAlreadyExists, err)
 	case strings.Contains(s, "detected modified configuration"):
 		return fmt.Errorf("%w: %w", errConflict, err)
+	case strings.Contains(s, "' is invalid"):
+		// PVE rejects an infeasible rule with "Rule '<id>' is invalid."; match the
+		// closing quote, not a bare "invalid" substring. Only ensureResourceAffinity
+		// treats this as soft, so a misconfigured node-affinity or user rule still fails.
+		return fmt.Errorf("%w: %w", errInfeasible, err)
 	}
 
 	return err
@@ -175,7 +181,7 @@ func (m *Manager) SyncRules(ctx context.Context, logger *zap.Logger, set, sid st
 		}
 
 		if cfg.ResourceAffinity != "" {
-			if err := m.ensureResourceAffinity(ctx, set, sid, cfg); err != nil {
+			if err := m.ensureResourceAffinity(ctx, logger, set, sid, cfg); err != nil {
 				return err
 			}
 		}
@@ -191,8 +197,8 @@ func (m *Manager) SyncRules(ctx context.Context, logger *zap.Logger, set, sid st
 }
 
 // Teardown deregisters the HA resource with purge, which strips the sid from
-// every rule server-side and drops a rule that would become invalid — PVE's
-// documented behavior, not reimplemented client-side.
+// every rule server-side and drops a rule that would become invalid. That is
+// PVE's documented behavior, not reimplemented client-side.
 func (m *Manager) Teardown(ctx context.Context, sid string) error {
 	if err := classify(m.cluster.HAResourceDelete(ctx, sid, true)); err != nil && !errors.Is(err, errNotFound) {
 		return fmt.Errorf("failed to deregister HA resource %s: %w", sid, err)
@@ -263,11 +269,22 @@ func (m *Manager) ensureNodeAffinity(ctx context.Context, logger *zap.Logger, se
 
 // ensureResourceAffinity adds sid to the resource-affinity rule, creating it
 // once the set has the two members Proxmox requires (a no-op before that).
-func (m *Manager) ensureResourceAffinity(ctx context.Context, set, sid string, cfg Config) error {
+//
+// PVE refuses a rule it can't satisfy with the current HA-live nodes (a negative
+// rule with as many resources as nodes, once one node drops out), returning
+// "Rule '<id>' is invalid." The rule is best-effort, so that rejection is logged
+// and tolerated rather than failing the step. It re-forms on a later sync wave;
+// a stable set whose rule stays infeasible never retries, so the warning is the
+// only signal.
+func (m *Manager) ensureResourceAffinity(ctx context.Context, logger *zap.Logger, set, sid string, cfg Config) error {
 	name := ruleName(set, resourceAffinitySuffix)
 
 	switch err := m.addToRule(ctx, name, sid); {
 	case err == nil:
+		return nil
+	case errors.Is(err, errInfeasible):
+		logInfeasibleRule(logger, name, err)
+
 		return nil
 	case !errors.Is(err, errNotFound):
 		return err
@@ -282,7 +299,7 @@ func (m *Manager) ensureResourceAffinity(ctx context.Context, set, sid string, c
 		return nil
 	}
 
-	return m.createOrAdopt(ctx, name, sid, func() error {
+	err = m.createOrAdopt(ctx, name, sid, func() error {
 		return classify(m.cluster.NewHARule(ctx, &proxmox.HARuleCreateOption{
 			Rule:      name,
 			Type:      "resource-affinity",
@@ -290,6 +307,18 @@ func (m *Manager) ensureResourceAffinity(ctx context.Context, set, sid string, c
 			Affinity:  cfg.ResourceAffinity,
 		}))
 	})
+	if errors.Is(err, errInfeasible) {
+		logInfeasibleRule(logger, name, err)
+
+		return nil
+	}
+
+	return err
+}
+
+func logInfeasibleRule(logger *zap.Logger, name string, err error) {
+	logger.Warn("Proxmox rejected the resource-affinity rule as infeasible; skipping it this sync",
+		zap.String("rule", name), zap.Error(err))
 }
 
 // createOrAdopt runs create; on success returns nil, on an already-exists error

@@ -40,11 +40,13 @@ const (
 	fNode      = "node"
 	fVMID      = "vmid"
 	fStatus    = "status"
+	fTags      = "tags"
 
 	typeResourceAffinity = "resource-affinity"
 	digestStub           = "abc"
 
-	ruleCustom = "custom-rule"
+	ruleCustom           = "custom-rule"
+	machineRequestSetTag = "machine-request.set1"
 )
 
 func newManager(t *testing.T, mux *http.ServeMux) *ha.Manager {
@@ -123,8 +125,8 @@ func TestResourceAffinityCreatedAtTwoMembers(t *testing.T) {
 	})
 	mux.HandleFunc("/nodes/pve1/qemu", func(w http.ResponseWriter, _ *http.Request) {
 		writeData(t, w, []map[string]any{
-			{fVMID: 100, "tags": "machine-request.set1"},
-			{fVMID: 101, "tags": "machine-request.set1"},
+			{fVMID: 100, fTags: machineRequestSetTag},
+			{fVMID: 101, fTags: machineRequestSetTag},
 		})
 	})
 
@@ -132,6 +134,103 @@ func TestResourceAffinityCreatedAtTwoMembers(t *testing.T) {
 	require.Equal(t, typeResourceAffinity, got[fType])
 	require.Equal(t, affNegative, got["affinity"])
 	require.Equal(t, "vm:100,vm:101", got[fResources])
+}
+
+func TestResourceAffinityToleratesInfeasibleRuleOnCreate(t *testing.T) {
+	var created atomic.Int32
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(raffRule, func(w http.ResponseWriter, _ *http.Request) {
+		fail500(t, w, "no such ha rule 'omni-set1-raff'")
+	})
+	mux.HandleFunc("/cluster/ha/rules", func(w http.ResponseWriter, _ *http.Request) {
+		created.Add(1)
+		fail500(t, w, "create ha rule failed: 400 Rule 'omni-set1-raff' is invalid.")
+	})
+	mux.HandleFunc("/cluster/ha/resources", func(w http.ResponseWriter, _ *http.Request) {
+		writeData(t, w, []map[string]any{{fSID: vm100}, {fSID: vm101}})
+	})
+	mux.HandleFunc("/nodes", func(w http.ResponseWriter, _ *http.Request) {
+		writeData(t, w, []map[string]any{{fNode: pve1, fStatus: nodeOnline}})
+	})
+	mux.HandleFunc("/nodes/pve1/status", func(w http.ResponseWriter, _ *http.Request) {
+		writeData(t, w, map[string]any{})
+	})
+	mux.HandleFunc("/nodes/pve1/qemu", func(w http.ResponseWriter, _ *http.Request) {
+		writeData(t, w, []map[string]any{
+			{fVMID: 100, fTags: machineRequestSetTag},
+			{fVMID: 101, fTags: machineRequestSetTag},
+		})
+	})
+
+	require.NoError(
+		t,
+		newManager(t, mux).SyncRules(context.Background(), zap.NewNop(), "set1", vm100, ha.Config{ResourceAffinity: affNegative}),
+		"a resource-affinity rule PVE rejects as infeasible must be tolerated, not surfaced as a hard error",
+	)
+	require.Positive(t, created.Load(), "the create must have been attempted")
+}
+
+func TestResourceAffinityToleratesInfeasibleRuleOnMemberAdd(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc(raffRule, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			fail500(t, w, "update ha rule failed: 400 Rule 'omni-set1-raff' is invalid.")
+
+			return
+		}
+
+		writeData(t, w, map[string]any{
+			fType: typeResourceAffinity, fRule: "omni-set1-raff",
+			fResources: vm100, "affinity": affNegative, fDigest: digestStub,
+		})
+	})
+
+	require.NoError(
+		t,
+		newManager(t, mux).SyncRules(context.Background(), zap.NewNop(), "set1", vm101, ha.Config{ResourceAffinity: affNegative}),
+		"an infeasible member-add to an existing resource-affinity rule must be tolerated",
+	)
+}
+
+func TestNodeAffinityInfeasibleRuleFailsHard(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/cluster/ha/rules", func(w http.ResponseWriter, _ *http.Request) {
+		fail500(t, w, "create ha rule failed: 400 Rule 'omni-set1-naff' is invalid.")
+	})
+
+	err := newManager(t, mux).SyncRules(context.Background(), zap.NewNop(), "set1", vm100, ha.Config{
+		NodeAffinityNodes: []string{pve1},
+	})
+	require.Error(t, err, "an infeasible node-affinity rule must stay a hard error; only resource-affinity is soft")
+}
+
+func TestResourceAffinityNonInfeasibleErrorFailsHard(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc(raffRule, func(w http.ResponseWriter, _ *http.Request) {
+		fail500(t, w, "no such ha rule 'omni-set1-raff'")
+	})
+	mux.HandleFunc("/cluster/ha/rules", func(w http.ResponseWriter, _ *http.Request) {
+		fail500(t, w, "create ha rule failed: 400 some other failure")
+	})
+	mux.HandleFunc("/cluster/ha/resources", func(w http.ResponseWriter, _ *http.Request) {
+		writeData(t, w, []map[string]any{{fSID: vm100}, {fSID: vm101}})
+	})
+	mux.HandleFunc("/nodes", func(w http.ResponseWriter, _ *http.Request) {
+		writeData(t, w, []map[string]any{{fNode: pve1, fStatus: nodeOnline}})
+	})
+	mux.HandleFunc("/nodes/pve1/status", func(w http.ResponseWriter, _ *http.Request) {
+		writeData(t, w, map[string]any{})
+	})
+	mux.HandleFunc("/nodes/pve1/qemu", func(w http.ResponseWriter, _ *http.Request) {
+		writeData(t, w, []map[string]any{
+			{fVMID: 100, fTags: machineRequestSetTag},
+			{fVMID: 101, fTags: machineRequestSetTag},
+		})
+	})
+
+	err := newManager(t, mux).SyncRules(context.Background(), zap.NewNop(), "set1", vm100, ha.Config{ResourceAffinity: affNegative})
+	require.Error(t, err, "a non-infeasible failure on the resource-affinity create must still fail hard")
 }
 
 func TestRuleEditRetriesOnDigestConflict(t *testing.T) {
