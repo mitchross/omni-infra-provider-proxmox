@@ -19,6 +19,16 @@
       "type": "string",
       "description": "Run the VM on a specific Proxmox node"
     },
+    "placement_strategy": {
+      "type": "string",
+      "enum": [
+        "spread",
+        "fewer-vms",
+        "round-robin",
+        "binpack"
+      ],
+      "description": "Node selection strategy for auto-provisioned VMs, ignored when 'node' is set. 'spread' (default) balances by free memory, 'fewer-vms' prefers nodes running the fewest VMs, 'round-robin' cycles nodes within a machine request set, 'binpack' packs onto the most-loaded node that still fits."
+    },
     "memory": {
       "type": "integer",
       "minimum": 2048,

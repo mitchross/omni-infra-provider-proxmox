@@ -19,6 +19,11 @@ const (
 
 	nodeAName = "node-a"
 	nodeBName = "node-b"
+	nodeCName = "node-c"
+
+	worker1 = "worker-1"
+	worker2 = "worker-2"
+	worker3 = "worker-3"
 )
 
 func TestPickNode(t *testing.T) {
@@ -207,17 +212,17 @@ func TestSchedulerSpreadsInFlightPlacements(t *testing.T) {
 		return []provider.NodeStatus{
 			{Name: nodeAName, MemoryFree: 0.9},
 			{Name: nodeBName, MemoryFree: 0.8},
-			{Name: "node-c", MemoryFree: 0.7},
+			{Name: nodeCName, MemoryFree: 0.7},
 		}
 	}
 
 	picked := make([]string, 0, 3)
 
-	for _, requestID := range []string{"worker-1", "worker-2", "worker-3"} {
+	for _, requestID := range []string{worker1, worker2, worker3} {
 		picked = append(picked, s.Pick(nodes(), talosWorkers, requestID, 0, "spread", nil).Name)
 	}
 
-	require.ElementsMatch(t, []string{nodeAName, nodeBName, "node-c"}, picked)
+	require.ElementsMatch(t, []string{nodeAName, nodeBName, nodeCName}, picked)
 }
 
 func TestSchedulerReleasesMaterializedReservations(t *testing.T) {
@@ -230,10 +235,10 @@ func TestSchedulerReleasesMaterializedReservations(t *testing.T) {
 		}
 	}
 
-	require.Equal(t, nodeAName, s.Pick(twoNodes(0), talosWorkers, "worker-1", 0, "spread", nil).Name)
-	require.Equal(t, nodeBName, s.Pick(twoNodes(0), talosWorkers, "worker-2", 0, "spread", nil).Name)
+	require.Equal(t, nodeAName, s.Pick(twoNodes(0), talosWorkers, worker1, 0, "spread", nil).Name)
+	require.Equal(t, nodeBName, s.Pick(twoNodes(0), talosWorkers, worker2, 0, "spread", nil).Name)
 
-	picked := s.Pick(twoNodes(1), talosWorkers, "worker-3", 0, "spread", map[string]struct{}{"worker-1": {}})
+	picked := s.Pick(twoNodes(1), talosWorkers, worker3, 0, "spread", map[string]struct{}{worker1: {}})
 
 	require.Equal(t, nodeAName, picked.Name)
 }
@@ -249,11 +254,11 @@ func TestSchedulerExpiresStaleReservations(t *testing.T) {
 		}
 	}
 
-	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, "worker-1", 0, "spread", nil).Name)
+	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, worker1, 0, "spread", nil).Name)
 
 	now = now.Add(2 * time.Minute)
 
-	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, "worker-2", 0, "spread", nil).Name)
+	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, worker2, 0, "spread", nil).Name)
 }
 
 func TestSchedulerReleaseFreesReservedNode(t *testing.T) {
@@ -266,12 +271,12 @@ func TestSchedulerReleaseFreesReservedNode(t *testing.T) {
 		}
 	}
 
-	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, "worker-1", 0, "spread", nil).Name)
-	require.Equal(t, nodeBName, s.Pick(nodes(), talosWorkers, "worker-2", 0, "spread", nil).Name)
+	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, worker1, 0, "spread", nil).Name)
+	require.Equal(t, nodeBName, s.Pick(nodes(), talosWorkers, worker2, 0, "spread", nil).Name)
 
-	s.Release("worker-2")
+	s.Release(worker2)
 
-	require.Equal(t, nodeBName, s.Pick(nodes(), talosWorkers, "worker-3", 0, "spread", nil).Name)
+	require.Equal(t, nodeBName, s.Pick(nodes(), talosWorkers, worker3, 0, "spread", nil).Name)
 }
 
 func TestSchedulerRoundRobinIgnoresMemory(t *testing.T) {
@@ -283,17 +288,17 @@ func TestSchedulerRoundRobinIgnoresMemory(t *testing.T) {
 		return []provider.NodeStatus{
 			{Name: nodeAName, MemoryFree: 0.1},
 			{Name: nodeBName, MemoryFree: 0.5},
-			{Name: "node-c", MemoryFree: 0.9},
+			{Name: nodeCName, MemoryFree: 0.9},
 		}
 	}
 
-	var picked []string
+	picked := make([]string, 0, 3)
 
-	for _, requestID := range []string{"worker-1", "worker-2", "worker-3"} {
+	for _, requestID := range []string{worker1, worker2, worker3} {
 		picked = append(picked, s.Pick(nodes(), talosWorkers, requestID, 0, "round-robin", nil).Name)
 	}
 
-	require.Equal(t, []string{nodeAName, nodeBName, "node-c"}, picked)
+	require.Equal(t, []string{nodeAName, nodeBName, nodeCName}, picked)
 }
 
 func TestSchedulerFewerVMsBalancesTotalLoad(t *testing.T) {
@@ -304,7 +309,7 @@ func TestSchedulerFewerVMsBalancesTotalLoad(t *testing.T) {
 		{Name: nodeBName, TotalVMs: 1, SameMachineRequestSetVMs: 3, MemoryFree: 0.5},
 	}
 
-	require.Equal(t, nodeBName, s.Pick(nodes, talosWorkers, "worker-1", 0, "fewer-vms", nil).Name)
+	require.Equal(t, nodeBName, s.Pick(nodes, talosWorkers, worker1, 0, "fewer-vms", nil).Name)
 }
 
 func TestSchedulerBinpackConsolidatesOntoNodesThatFit(t *testing.T) {
@@ -317,8 +322,8 @@ func TestSchedulerBinpackConsolidatesOntoNodesThatFit(t *testing.T) {
 		}
 	}
 
-	require.Equal(t, nodeBName, s.Pick(nodes(), talosWorkers, "worker-1", 40, "binpack", nil).Name)
-	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, "worker-2", 60, "binpack", nil).Name)
+	require.Equal(t, nodeBName, s.Pick(nodes(), talosWorkers, worker1, 40, "binpack", nil).Name)
+	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, worker2, 60, "binpack", nil).Name)
 }
 
 func TestParseStrategy(t *testing.T) {

@@ -62,7 +62,7 @@ func newSchedulerWithClock(now func() time.Time, ttl time.Duration) *scheduler {
 	}
 }
 
-func (s *scheduler) pick(nodes []nodeStatus, set, requestID string, memory uint64, strat placementStrategy, materialized map[string]struct{}) nodeStatus {
+func (s *scheduler) pick(nodes []nodeStatus, set, requestID string, memory uint64, strategy placementStrategy, materialized map[string]struct{}) nodeStatus {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -85,11 +85,11 @@ func (s *scheduler) pick(nodes []nodeStatus, set, requestID string, memory uint6
 		}
 
 		if ns, ok := byName[r.node]; ok {
-			applyReservation(strat, ns, r)
+			applyReservation(strategy, ns, r)
 		}
 	}
 
-	picked := selectNode(strat, nodes, memory)
+	picked := selectNode(strategy, nodes, memory)
 
 	s.reservations[requestID] = reservation{node: picked.Name, set: set, memory: memory, at: now}
 
@@ -105,8 +105,8 @@ func (s *scheduler) release(requestID string) {
 	delete(s.reservations, requestID)
 }
 
-func applyReservation(strat placementStrategy, ns *nodeStatus, r reservation) {
-	switch strat {
+func applyReservation(strategy placementStrategy, ns *nodeStatus, r reservation) {
+	switch strategy {
 	case strategyFewerVMs:
 		ns.TotalVMs++
 	case strategyBinpack:
@@ -121,8 +121,8 @@ func applyReservation(strat placementStrategy, ns *nodeStatus, r reservation) {
 	}
 }
 
-func selectNode(strat placementStrategy, nodes []nodeStatus, memory uint64) nodeStatus {
-	switch strat {
+func selectNode(strategy placementStrategy, nodes []nodeStatus, memory uint64) nodeStatus {
+	switch strategy {
 	case strategyFewerVMs:
 		slices.SortFunc(nodes, func(a, b nodeStatus) int {
 			if c := cmp.Compare(a.TotalVMs, b.TotalVMs); c != 0 {

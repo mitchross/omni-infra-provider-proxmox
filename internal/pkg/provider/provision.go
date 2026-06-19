@@ -100,7 +100,7 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				return fmt.Errorf("specified node %q not found in cluster", data.Node)
 			}
 
-			strat, err := parseStrategy(data.PlacementStrategy)
+			strategy, err := parseStrategy(data.PlacementStrategy)
 			if err != nil {
 				return err
 			}
@@ -163,7 +163,7 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 			var pickedNode nodeStatus
 
 			if inSet {
-				pickedNode = p.scheduler.pick(nodeInfoList, machineRequestSet, pctx.GetRequestID(), data.Memory*1024*1024, strat, materialized)
+				pickedNode = p.scheduler.pick(nodeInfoList, machineRequestSet, pctx.GetRequestID(), data.Memory*1024*1024, strategy, materialized)
 			} else {
 				pickedNode = pickNode(nodeInfoList)
 			}

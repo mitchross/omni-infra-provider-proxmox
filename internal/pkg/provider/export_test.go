@@ -31,15 +31,15 @@ func NewSchedulerWithClock(now func() time.Time, ttl time.Duration) *Scheduler {
 }
 
 func (s *scheduler) Pick(nodes []NodeStatus, set, requestID string, memory uint64, strategy string, materialized map[string]struct{}) NodeStatus {
-	strat, _ := parseStrategy(strategy)
+	parsed, _ := parseStrategy(strategy) //nolint:errcheck
 
-	return s.pick(nodes, set, requestID, memory, strat, materialized)
+	return s.pick(nodes, set, requestID, memory, parsed, materialized)
 }
 
 func ParseStrategy(s string) (string, error) {
-	strat, err := parseStrategy(s)
+	parsed, err := parseStrategy(s)
 
-	return string(strat), err
+	return string(parsed), err
 }
 
 func (s *scheduler) Release(requestID string) {
