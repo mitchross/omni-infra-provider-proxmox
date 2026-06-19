@@ -71,3 +71,12 @@ func (s *scheduler) pick(nodes []nodeStatus, set, requestID string, materialized
 
 	return picked
 }
+
+// release drops a request's reservation when its VM is deprovisioned, so a node
+// removed before the VM materializes doesn't strand ledger data until the TTL.
+func (s *scheduler) release(requestID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.reservations, requestID)
+}

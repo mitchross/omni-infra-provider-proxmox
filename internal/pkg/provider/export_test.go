@@ -33,3 +33,7 @@ func NewSchedulerWithClock(now func() time.Time, ttl time.Duration) *Scheduler {
 func (s *scheduler) Pick(nodes []NodeStatus, set, requestID string, materialized map[string]struct{}) NodeStatus {
 	return s.pick(nodes, set, requestID, materialized)
 }
+
+func (s *scheduler) Release(requestID string) {
+	s.release(requestID)
+}

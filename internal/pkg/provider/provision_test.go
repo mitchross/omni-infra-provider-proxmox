@@ -234,3 +234,21 @@ func TestSchedulerExpiresStaleReservations(t *testing.T) {
 
 	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, "worker-2", nil).Name)
 }
+
+func TestSchedulerReleaseFreesReservedNode(t *testing.T) {
+	s := provider.NewScheduler()
+
+	nodes := func() []provider.NodeStatus {
+		return []provider.NodeStatus{
+			{Name: nodeAName, MemoryFree: 1.0},
+			{Name: nodeBName, MemoryFree: 0.9},
+		}
+	}
+
+	require.Equal(t, nodeAName, s.Pick(nodes(), talosWorkers, "worker-1", nil).Name)
+	require.Equal(t, nodeBName, s.Pick(nodes(), talosWorkers, "worker-2", nil).Name)
+
+	s.Release("worker-2")
+
+	require.Equal(t, nodeBName, s.Pick(nodes(), talosWorkers, "worker-3", nil).Name)
+}

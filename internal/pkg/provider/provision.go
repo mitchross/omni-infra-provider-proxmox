@@ -637,6 +637,10 @@ hostname: %s`,
 
 // Deprovision implements infra.Provisioner.
 func (p *Provisioner) Deprovision(ctx context.Context, logger *zap.Logger, machine *resources.Machine, machineRequest *infra.MachineRequest) error {
+	// release up front: a request torn down before its VM materializes returns
+	// at the Vmid == 0 check below.
+	p.scheduler.release(machineRequest.Metadata().ID())
+
 	if machine.TypedSpec().Value.Vmid == 0 {
 		return nil
 	}
