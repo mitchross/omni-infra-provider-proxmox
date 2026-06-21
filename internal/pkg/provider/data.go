@@ -19,6 +19,8 @@ type Data struct {
 	NetworkBridge   string `yaml:"network_bridge"`
 	Hugepages       string `yaml:"hugepages,omitempty"`
 	MachineType     string `yaml:"machine_type,omitempty"`
+	Bios            string `yaml:"bios,omitempty"`
+	VGA             string `yaml:"vga,omitempty"`
 	CPUType         string `yaml:"cpu_type,omitempty"`
 	DiskAIO         string `yaml:"disk_aio,omitempty"`
 	DiskCache       string `yaml:"disk_cache,omitempty"`

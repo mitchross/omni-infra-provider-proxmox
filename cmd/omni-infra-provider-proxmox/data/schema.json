@@ -96,6 +96,18 @@
       ],
       "description": "Machine type. Use 'q35' for GPU passthrough (native PCIe support)"
     },
+    "bios": {
+      "type": "string",
+      "enum": [
+        "seabios",
+        "ovmf"
+      ],
+      "description": "VM firmware. When set to 'ovmf', the provider also creates a 4MB EFI disk on the selected VM storage."
+    },
+    "vga": {
+      "type": "string",
+      "description": "Proxmox display adapter, for example 'std' or 'none'."
+    },
     "numa": {
       "type": "boolean",
       "description": "Enable NUMA topology for better memory locality on multi-socket systems"

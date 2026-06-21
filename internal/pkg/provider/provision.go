@@ -513,6 +513,8 @@ func (p *Provisioner) ProvisionSteps() []provision.Step[*resources.Machine] {
 				})
 			}
 
+			vmOptions = append(vmOptions, buildFirmwareOptions(data, selectedStorage)...)
+
 			// Add NUMA if enabled
 			if data.NUMA {
 				vmOptions = append(vmOptions, proxmox.VirtualMachineOption{
@@ -745,6 +747,33 @@ func buildTagsOption(userTags []string, machineRequestSet string) (string, bool)
 	}
 
 	return strings.Join(tags, ";"), true
+}
+
+func buildFirmwareOptions(data Data, selectedStorage string) []proxmox.VirtualMachineOption {
+	var options []proxmox.VirtualMachineOption
+
+	if data.Bios != "" {
+		options = append(options, proxmox.VirtualMachineOption{
+			Name:  "bios",
+			Value: data.Bios,
+		})
+
+		if data.Bios == "ovmf" {
+			options = append(options, proxmox.VirtualMachineOption{
+				Name:  "efidisk0",
+				Value: fmt.Sprintf("%s:1,efitype=4m,pre-enrolled-keys=0", selectedStorage),
+			})
+		}
+	}
+
+	if data.VGA != "" {
+		options = append(options, proxmox.VirtualMachineOption{
+			Name:  "vga",
+			Value: data.VGA,
+		})
+	}
+
+	return options
 }
 
 func poolCreateDecision(exists bool, poolID, machineRequestSet string) (bool, error) {

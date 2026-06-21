@@ -335,3 +335,47 @@ func TestParseStrategy(t *testing.T) {
 	_, err := provider.ParseStrategy("nonsense")
 	require.Error(t, err)
 }
+
+func TestBuildFirmwareOptions(t *testing.T) {
+	const vgaStd = "std"
+
+	tests := []struct {
+		expected map[string]any
+		name     string
+		data     provider.Data
+	}{
+		{
+			name:     "No firmware or display options",
+			expected: map[string]any{},
+		},
+		{
+			name: "SeaBIOS with display option",
+			data: provider.Data{
+				Bios: "seabios",
+				VGA:  vgaStd,
+			},
+			expected: map[string]any{
+				"bios": "seabios",
+				"vga":  vgaStd,
+			},
+		},
+		{
+			name: "OVMF creates EFI disk on selected storage",
+			data: provider.Data{
+				Bios: "ovmf",
+				VGA:  vgaStd,
+			},
+			expected: map[string]any{
+				"bios":     "ovmf",
+				"efidisk0": "local-lvm:1,efitype=4m,pre-enrolled-keys=0",
+				"vga":      vgaStd,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, provider.BuildFirmwareOptions(tt.data, "local-lvm"))
+		})
+	}
+}

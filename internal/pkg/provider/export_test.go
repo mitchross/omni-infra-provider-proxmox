@@ -16,6 +16,17 @@ func BuildTagsOption(userTags []string, machineRequestSet string) (string, bool)
 	return buildTagsOption(userTags, machineRequestSet)
 }
 
+func BuildFirmwareOptions(data Data, selectedStorage string) map[string]any {
+	options := buildFirmwareOptions(data, selectedStorage)
+
+	result := map[string]any{}
+	for _, option := range options {
+		result[option.Name] = option.Value
+	}
+
+	return result
+}
+
 func PoolCreateDecision(exists bool, poolID, machineRequestSet string) (bool, error) {
 	return poolCreateDecision(exists, poolID, machineRequestSet)
 }
